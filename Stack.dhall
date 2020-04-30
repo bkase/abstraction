@@ -35,5 +35,7 @@ let StackImpl : Impl = \(u : Type) ->
         }
       }
 in
+-- We don't export the concrete stack, only StackImpl which hides the type
+-- behind a higher-rank forall
 { Type = StackType, Impl = StackImpl, Client = Client }
 
