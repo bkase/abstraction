@@ -1,41 +1,49 @@
-let Prelude = https://prelude.dhall-lang.org/v15.0.0/package.dhall sha256:6b90326dc39ab738d7ed87b970ba675c496bed0194071b332840a87261649dcd
+-- An infinite stack interface and implementation
+
+let Prelude =
+      https://prelude.dhall-lang.org/v15.0.0/package.dhall sha256:6b90326dc39ab738d7ed87b970ba675c496bed0194071b332840a87261649dcd
 
 let Existential = ./Existential.dhall
 
--- We choose our StackType to be an (infinite) stack
-let StackType : Type -> Type =
-  \(t : Type) -> {
-    create : Natural -> t,
-    push : Natural -> t -> t,
-    pop : t -> { x: Natural, rest: t }
-  }
+let Interface
+    : Type → Type
+    =   λ(t : Type)
+      → { create : Natural → t
+        , push : Natural → t → t
+        , pop : t → { x : Natural, rest : t }
+        }
 
-let e = Existential StackType
+let e = Existential Interface
+
 let Impl = e.Impl
+
 let Client = e.Client
 
--- The concrete stack is a default value if it's empty and a list of the rest
-let Stack = { default: Natural, xs : List Natural }
+let Stack = { default : Natural, xs : List Natural }
 
--- The implementation relies on the concrete stack
-let StackImpl : Impl = \(u : Type) ->
-  \(x: Client u) ->
-    x
-      Stack
-      { create = \(i : Natural) -> { default = i, xs = [] : List Natural }
-      , push = \(i : Natural) -> \(t : Stack) -> t // { xs = [ i ] # t.xs }
-      , pop = \(t : Stack) -> {
-          x =
-            Prelude.Optional.fold Natural
-              (Prelude.List.head Natural t.xs)
-              Natural
-              (\(x: Natural) -> x)
-              t.default,
-          rest = { default = t.default, xs = Prelude.List.drop 1 Natural t.xs }
-        }
-      }
-in
--- We don't export the concrete stack, only StackImpl which hides the type
--- behind a higher-rank forall
-{ Type = StackType, Impl = StackImpl, Client = Client }
+let StackImpl
+    : Impl
+    =   λ(u : Type)
+      → λ(x : Client u)
+      → x
+          Stack
+          { create = λ(i : Natural) → { default = i, xs = [] : List Natural }
+          , push = λ(i : Natural) → λ(t : Stack) → t ⫽ { xs = [ i ] # t.xs }
+          , pop =
+                λ(t : Stack)
+              → { x =
+                    Prelude.Optional.fold
+                      Natural
+                      (Prelude.List.head Natural t.xs)
+                      Natural
+                      (λ(x : Natural) → x)
+                      t.default
+                , rest =
+                    { default = t.default
+                    , xs = Prelude.List.drop 1 Natural t.xs
+                    }
+                }
+          }
 
+in    { Interface = Interface, Impl = StackImpl, Client = Client }
+    : { Interface : Type → Type, Impl : Impl, Client : Type → Type }
